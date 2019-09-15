@@ -32,5 +32,6 @@ bench:
 
 deploy:
 	cd webapp/go && make isucari && cd -
-	scp ./webapp/go/isucari isucon:~/isucari/webapp/go/
-	ssh isucon 'sudo systemctl restart isucari.golang.service'
+	ssh isucon 'sudo systemctl stop isucari.golang.service'
+	scp ./webapp/go/isucari isucon:~/isucari/webapp/go
+	ssh isucon 'sudo systemctl start isucari.golang.service'
