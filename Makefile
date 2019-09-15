@@ -30,3 +30,7 @@ clean:
 bench:
 	ssh isucon-bench 'cd isucari && make start-bench'
 
+deploy:
+	cd webapp/go && make isucari && cd -
+	scp ./webapp/go/isucari isucon:~/isucari/webapp/go/
+	ssh isucon 'sudo systemctl restart isucari.golang.service'
