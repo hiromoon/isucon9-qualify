@@ -3,4 +3,4 @@ export GO111MODULE=on
 all: isucari
 
 isucari: *.go
-	go build -o isucari
+	GOARCH=amd64 GOOS=linux go build -o isucari
