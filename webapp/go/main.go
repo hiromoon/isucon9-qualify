@@ -63,6 +63,7 @@ var (
 	templates *template.Template
 	dbx       *sqlx.DB
 	store     sessions.Store
+	configs   map[string]string
 )
 
 type Config struct {
@@ -470,21 +471,14 @@ func getCategoryByID(categoryID int) (Category, error) {
 	return Category{}, fmt.Errorf("spesified category is not found")
 }
 
-func getConfigByName(name string) (string, error) {
+func getConfigByName(name string) string {
 	config := Config{}
-	err := dbx.Get(&config, "SELECT * FROM `configs` WHERE `name` = ?", name)
-	if err == sql.ErrNoRows {
-		return "", nil
-	}
-	if err != nil {
-		log.Print(err)
-		return "", err
-	}
-	return config.Val, err
+	config.Val = configs[name]
+	return config.Val
 }
 
 func getPaymentServiceURL() string {
-	val, _ := getConfigByName("payment_service_url")
+	val := getConfigByName("payment_service_url")
 	if val == "" {
 		return DefaultPaymentServiceURL
 	}
@@ -492,7 +486,7 @@ func getPaymentServiceURL() string {
 }
 
 func getShipmentServiceURL() string {
-	val, _ := getConfigByName("shipment_service_url")
+	val := getConfigByName("shipment_service_url")
 	if val == "" {
 		return DefaultShipmentServiceURL
 	}
@@ -521,26 +515,9 @@ func postInitialize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = dbx.Exec(
-		"INSERT INTO `configs` (`name`, `val`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `val` = VALUES(`val`)",
-		"payment_service_url",
-		ri.PaymentServiceURL,
-	)
-	if err != nil {
-		log.Print(err)
-		outputErrorMsg(w, http.StatusInternalServerError, "db error")
-		return
-	}
-	_, err = dbx.Exec(
-		"INSERT INTO `configs` (`name`, `val`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `val` = VALUES(`val`)",
-		"shipment_service_url",
-		ri.ShipmentServiceURL,
-	)
-	if err != nil {
-		log.Print(err)
-		outputErrorMsg(w, http.StatusInternalServerError, "db error")
-		return
-	}
+	configs = make(map[string]string, 2)
+	configs["payment_service_url"] = ri.PaymentServiceURL
+	configs["shipment_service_url"] = ri.ShipmentServiceURL
 
 	res := resInitialize{
 		// キャンペーン実施時には還元率の設定を返す。詳しくはマニュアルを参照のこと。
