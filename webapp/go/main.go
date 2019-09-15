@@ -964,11 +964,19 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	itemDetails := []ItemDetail{}
-	sellerIDs := []int64{}
+	userIDs := []int64{}
+	t := map[int64]bool{}
 	for _, item := range items {
-		sellerIDs = append(sellerIDs, item.SellerID)
+		if _, ok := t[item.SellerID]; !ok {
+			userIDs = append(userIDs, item.SellerID)
+			t[item.SellerID] = true
+		}
+		if _, ok := t[item.BuyerID]; !ok {
+			userIDs = append(userIDs, item.BuyerID)
+			t[item.SellerID] = true
+		}
 	}
-	sellers, err := bulkGetUserSimpleByID(tx, sellerIDs)
+	users, err := bulkGetUserSimpleByID(tx, userIDs)
 	if err != nil {
 		outputErrorMsg(w, http.StatusNotFound, err.Error())
 		tx.Rollback()
@@ -976,7 +984,7 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, item := range items {
-		seller, err := findUserByID(sellers, item.SellerID)
+		seller, err := findUserByID(users, item.SellerID)
 		if err != nil {
 			outputErrorMsg(w, http.StatusNotFound, "seller not found")
 			tx.Rollback()
@@ -1009,7 +1017,7 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if item.BuyerID != 0 {
-			buyer, err := getUserSimpleByID(tx, item.BuyerID)
+			buyer, err := findUserByID(users, item.BuyerID)
 			if err != nil {
 				outputErrorMsg(w, http.StatusNotFound, "buyer not found")
 				tx.Rollback()
