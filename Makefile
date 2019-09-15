@@ -25,3 +25,8 @@ staticcheck:
 
 clean:
 	rm -rf bin/*
+
+.PHONY: bench
+bench:
+	ssh isucon-bench 'cd isucari && make start-bench'
+
