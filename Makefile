@@ -28,7 +28,7 @@ clean:
 
 .PHONY: bench
 bench:
-	ssh isucon-bench 'cd isucari && make start-bench'
+	ssh isucon-bench 'cd isucari && ulimit -Sn 100000 && make start-bench'
 
 deploy:
 	cd webapp/go && make isucari && cd -
