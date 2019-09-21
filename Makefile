@@ -35,3 +35,9 @@ deploy:
 	ssh isucon 'sudo systemctl stop isucari.golang.service'
 	scp ./webapp/go/isucari isucon:~/isucari/webapp/go
 	ssh isucon 'sudo systemctl start isucari.golang.service'
+
+deploy-login:
+	cd webapp/go && make isucari && cd -
+	ssh isucon2 'sudo systemctl stop isucari.golang.service'
+	scp ./webapp/go/isucari isucon2:~/isucari/webapp/go
+	ssh isucon2 'sudo systemctl start isucari.golang.service'
