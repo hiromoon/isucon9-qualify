@@ -866,6 +866,27 @@ func getUserItems(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(rui)
 }
 
+func bulkGetTransactionEvidence(q sqlx.Queryer, itemIDs []int64) ([]TransactionEvidence, error) {
+	transactions := []TransactionEvidence{}
+	query, args, err := sqlx.In("SELECT * FROM `transaction_evidences` WHERE `item_id` IN(?)", itemIDs)
+	if err != nil {
+		return []TransactionEvidence{}, err
+	}
+	if err := sqlx.Select(q, &transactions, query, args...); err != nil {
+		return []TransactionEvidence{}, err
+	}
+	return transactions, nil
+}
+
+func findTransactionEvidenceByItemID(transactionEvidences []TransactionEvidence, itemID int64) TransactionEvidence {
+	for _, t := range transactionEvidences {
+		if t.ItemID == itemID {
+			return t
+		}
+	}
+	return TransactionEvidence{}
+}
+
 func getTransactions(w http.ResponseWriter, r *http.Request) {
 
 	user, errCode, errMsg := getUser(r)
@@ -961,6 +982,19 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	itemIDs := []int64{}
+	for _, item := range items {
+		itemIDs = append(itemIDs, item.ID)
+	}
+	transactionEvidences, err := bulkGetTransactionEvidence(tx, itemIDs)
+	if err != nil && err != sql.ErrNoRows {
+		// It's able to ignore ErrNoRows
+		log.Print(err)
+		outputErrorMsg(w, http.StatusInternalServerError, "db error")
+		tx.Rollback()
+		return
+	}
+
 	for _, item := range items {
 		seller, err := findUserByID(users, item.SellerID)
 		if err != nil {
@@ -1005,15 +1039,7 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 			itemDetail.Buyer = &buyer
 		}
 
-		transactionEvidence := TransactionEvidence{}
-		err = tx.Get(&transactionEvidence, "SELECT * FROM `transaction_evidences` WHERE `item_id` = ?", item.ID)
-		if err != nil && err != sql.ErrNoRows {
-			// It's able to ignore ErrNoRows
-			log.Print(err)
-			outputErrorMsg(w, http.StatusInternalServerError, "db error")
-			tx.Rollback()
-			return
-		}
+		transactionEvidence := findTransactionEvidenceByItemID(transactionEvidences, item.ID)
 
 		if transactionEvidence.ID > 0 {
 			shipping := Shipping{}
