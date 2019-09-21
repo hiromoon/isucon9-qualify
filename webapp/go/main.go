@@ -887,6 +887,27 @@ func findTransactionEvidenceByItemID(transactionEvidences []TransactionEvidence,
 	return TransactionEvidence{}
 }
 
+func bulkGetShipping(q sqlx.Queryer, transactionEvidenceIDs []int64) ([]Shipping, error) {
+	shippings := []Shipping{}
+	query, args, err := sqlx.In("SELECT * FROM `shippings` WHERE `transaction_evidence_id` IN(?)", transactionEvidenceIDs)
+	if err != nil {
+		return []Shipping{}, err
+	}
+	if err := sqlx.Select(q, &shippings, query, args...); err != nil {
+		return []Shipping{}, err
+	}
+	return shippings, nil
+}
+
+func findShipping(shippings []Shipping, transactionEvidenceID int64) Shipping {
+	for _, s := range shippings {
+		if s.TransactionEvidenceID == transactionEvidenceID {
+			return s
+		}
+	}
+	return Shipping{}
+}
+
 func getTransactions(w http.ResponseWriter, r *http.Request) {
 
 	user, errCode, errMsg := getUser(r)
@@ -995,6 +1016,19 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	transactionIDs := []int64{}
+	for _, transaction := range transactionEvidences {
+		transactionIDs = append(transactionIDs, transaction.ID)
+	}
+
+	shippings, err := bulkGetShipping(tx, transactionIDs)
+	if err != nil {
+		log.Print(err)
+		outputErrorMsg(w, http.StatusInternalServerError, "db error")
+		tx.Rollback()
+		return
+	}
+
 	for _, item := range items {
 		seller, err := findUserByID(users, item.SellerID)
 		if err != nil {
@@ -1042,16 +1076,10 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 		transactionEvidence := findTransactionEvidenceByItemID(transactionEvidences, item.ID)
 
 		if transactionEvidence.ID > 0 {
-			shipping := Shipping{}
-			err = tx.Get(&shipping, "SELECT * FROM `shippings` WHERE `transaction_evidence_id` = ?", transactionEvidence.ID)
-			if err == sql.ErrNoRows {
+			shipping := findShipping(shippings, transactionEvidence.ID)
+			// NoRowErrにならなくなったので構造体のIDのゼロ値と比較して見つからなかった場合に当てはめてる
+			if shipping.TransactionEvidenceID == 0 {
 				outputErrorMsg(w, http.StatusNotFound, "shipping not found")
-				tx.Rollback()
-				return
-			}
-			if err != nil {
-				log.Print(err)
-				outputErrorMsg(w, http.StatusInternalServerError, "db error")
 				tx.Rollback()
 				return
 			}
