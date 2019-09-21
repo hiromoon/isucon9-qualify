@@ -515,9 +515,10 @@ func postInitialize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	configs = make(map[string]string, 2)
-	configs["payment_service_url"] = ri.PaymentServiceURL
-	configs["shipment_service_url"] = ri.ShipmentServiceURL
+	configs = map[string]string{
+		"payment_service_url":  ri.PaymentServiceURL,
+		"shipment_service_url": ri.ShipmentServiceURL,
+	}
 
 	res := resInitialize{
 		// キャンペーン実施時には還元率の設定を返す。詳しくはマニュアルを参照のこと。
