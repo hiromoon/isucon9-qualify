@@ -41,3 +41,7 @@ deploy-login:
 	ssh isucon2 'sudo systemctl stop isucari.golang.service'
 	scp ./webapp/go/isucari isucon2:~/isucari/webapp/go
 	ssh isucon2 'sudo systemctl start isucari.golang.service'
+
+deploy-sql:
+	scp -r ./webapp/sql/* isucon:~/isucari/webapp/sql/
+	ssh isucon 'cd ~/isucari/webapp/sql && ./init.sh'
